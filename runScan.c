@@ -16,7 +16,9 @@ int main(int argc, char **argv) {
 
     struct ext2_super_block super;
     struct ext2_group_desc group;
-    
+
+    // Create the output directory
+    mkdir(argv[2], 0777);
 
     // Reconstruct all jpg files from a given disk image.    
     // Scan all inodes that represent regular files and check if the first data block of the inode contains the jpg magic numbers: 
@@ -26,21 +28,19 @@ int main(int argc, char **argv) {
         read_inode(fd, start_inode_table, i, inode);
         
         // Check if the inode is a regular file
-        if (S_ISREG(inode->i_mode)) {
-            // Check if the first data block of the inode contains the jpg magic numbers
+        if (S_ISREG(inode->i_mode)) {            
             unsigned int first_block = inode->i_block[0];
             unsigned char *block = malloc(block_size);
             read_block(fd, first_block, block);
             int is_jpg = 0;
+
+            // Check if the first data block of the inode contains the jpg magic numbers
             if (block[0] == 0xFF && block[1] == 0xD8 && block[2] == 0xFF && (block[3] == 0xE0 || block[3] == 0xE1 || block[3] == 0xE8)) {
                 is_jpg = 1;
-                // copy the content of that file to an output file (stored in your 'output/' directory), using the inode number as the file name
-                // THIS STILL NEEDS TO BE IMPLEMENTED
-                char *filename = malloc(sizeof(char) * 20);
-                sprintf(filename, "%u", i);
-                FILE *f = fopen(filename, "w");
-                fwrite(block, block_size, 1, f);
-                fclose(f);
+                                
+                // Create the output file using the inode number as the file name and copy the content of the first block to it.
+                FILE *out = fopen(argv[2] + "/file-" + std::to_string(first_block) + ".jpg", "w");
+                fwrite(block, block_size, 1, out);
             }
         }
     }
