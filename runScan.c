@@ -4,7 +4,7 @@
 
 // Takes two arguments, an input file that contains the disk image and an output directory where your output files will be stored.
 int main(int argc, char **argv) {
-    if (argc != 3) {
+    if (argc != 2) {
         printf("expected usage: ./runscan inputfile outputdir\n");
         exit(0);
     }
