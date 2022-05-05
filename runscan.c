@@ -26,17 +26,26 @@ int main(int argc, char **argv) {
 
 	unsigned int total_groups = super.s_blocks_count / super.s_blocks_per_group; //total number of groups 
 	printf("debug: total_groups: %u\n\n\n\n\n", total_groups);
-	
 	printf("There are %u inodes in an inode table block and %u blocks in the idnode table\n", inodes_per_block, itable_blocks);
+
+	int found_inode_numbers[20]; //detected inodes for jpg files
+	int freePosition = 0;
+
 	//iterate the first inode block
 	for (unsigned int j = 0; j < total_groups; j++) {
 
 		off_t start_inode_table = locate_inode_table(j, &group);
 		//off_t start_inode_table = locate_inode_table(0, &group);
 
+		//inodes_per_block = block_size / sizeof(struct ext2_inode);		/* number of inodes per data block */
+		//printf("sizeof(struct ext2_inode): %lu\n\n\n", sizeof(struct ext2_inode)); //128. debug
+		//printf("s_inodes_per_group: %u\n\n\n\n\n", super.s_inodes_per_group); //128. debug
 		
-		for (unsigned int i = 0; i < inodes_per_block; i++) {
+
+		//loop through all inodes in the inode table
+		for (unsigned int i = 0; i < super.s_inodes_per_group; i++) { //is this condition supposed to be s_inodes_per_group? originally it's  i < inodes_per_block
 				printf("inode %u: \n", i);
+				int current_inode = i;
 				struct ext2_inode *inode = malloc(sizeof(struct ext2_inode));
 
 			
@@ -78,8 +87,10 @@ int main(int argc, char **argv) {
 										buffer[3] == (char)0xe8)) {
 										is_jpg = 1;
 									}
-									if(is_jpg == 1)
+									if(is_jpg == 1){
 										printf("found: inode: %u\n\n\n\n\n", i);
+										found_inode_numbers[freePosition++] = current_inode;
+									}
 								}	
 							}
 							else if (i == EXT2_IND_BLOCK){                             /* single indirect block */
@@ -90,18 +101,6 @@ int main(int argc, char **argv) {
 									block_num = *((int*)(buffer)+0); //dereferenced the first 4 bytes pointer
 									lseek(fd, BLOCK_OFFSET(block_num), SEEK_SET);        
 									read(fd, &buffer, SIZE_OF_BLOCK);  
-
-									int is_jpg = 0;
-									if (buffer[0] == (char)0xff &&
-										buffer[1] == (char)0xd8 &&
-										buffer[2] == (char)0xff &&
-										(buffer[3] == (char)0xe0 ||
-										buffer[3] == (char)0xe1 ||
-										buffer[3] == (char)0xe8)) {
-										is_jpg = 1;
-									}
-									if(is_jpg == 1)
-										printf("found: inode: %u\n\n\n\n\n", i);
 							}
 							else if (i == EXT2_DIND_BLOCK) {                           /* double indirect block */
 									
@@ -119,22 +118,7 @@ int main(int argc, char **argv) {
 									//debug
 									printf("buffer[0]: %u", buffer[0]);	
 									printf("buffer[1]: %u", buffer[1]);
-									printf("buffer[2]: %u", buffer[2]);    
-									printf("buffer[3]: %u", buffer[3]); 
-									printf("buffer[4]: %u", buffer[4]);
-									printf("buffer[7]: %u", buffer[7]); 
-
-									int is_jpg = 0;
-									if (buffer[0] == (char)0xff &&
-										buffer[1] == (char)0xd8 &&
-										buffer[2] == (char)0xff &&
-										(buffer[3] == (char)0xe0 ||
-										buffer[3] == (char)0xe1 ||
-										buffer[3] == (char)0xe8)) {
-										is_jpg = 1;
-									}
-									if(is_jpg == 1)
-										printf("found: inode: %u\n\n\n\n\n", i);
+								
 							}
 							else if (i == EXT2_TIND_BLOCK) {                           /* triple indirect block */
 
@@ -153,17 +137,7 @@ int main(int argc, char **argv) {
 									lseek(fd, BLOCK_OFFSET(block_num), SEEK_SET);        
 									read(fd, &buffer, SIZE_OF_BLOCK);   //now the buffer contains the content of the first data block    
 
-									int is_jpg = 0;
-									if (buffer[0] == (char)0xff &&
-										buffer[1] == (char)0xd8 &&
-										buffer[2] == (char)0xff &&
-										(buffer[3] == (char)0xe0 ||
-										buffer[3] == (char)0xe1 ||
-										buffer[3] == (char)0xe8)) {
-										is_jpg = 1;
-									}
-									if(is_jpg == 1)
-										printf("found: inode: %u\n\n\n\n\n", i);
+									
 							}
 
 					}
@@ -241,9 +215,11 @@ int main(int argc, char **argv) {
 		}
 	}
 				
-
-
-
+	//print all the detected inode numbers that corresponds to the jpg file
+	for (int i = 0; i < freePosition; i++)
+		printf("found_inode_numbers: %i", found_inode_numbers[i]);
+	
+	
 	
 	close(fd);
 }
