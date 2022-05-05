@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
 	read_group_desc(fd, 0, &group);
 
 	unsigned int total_groups = super.s_blocks_count / super.s_blocks_per_group; //total number of groups 
+	printf("debug: total_groups: %u\n\n\n\n\n", total_groups);
 	
 	printf("There are %u inodes in an inode table block and %u blocks in the idnode table\n", inodes_per_block, itable_blocks);
 	//iterate the first inode block
@@ -167,27 +168,7 @@ int main(int argc, char **argv) {
 
 					}
 				}
-				else if(S_ISDIR(inode->i_mode)){
-					for(unsigned int i=0; i<EXT2_N_BLOCKS; i++)
-					{       if (i < EXT2_NDIR_BLOCKS) {                                /* direct blocks */
-								printf("Block %2u : %u\n", i, inode->i_block[i]);
-								if (S_ISREG(inode->i_mode)) {
-									char buffer[SIZE_OF_BLOCK];
-									//read the content of the block (block[inode->i_block[i]])
-									lseek(fd, BLOCK_OFFSET(inode->i_block[i]), SEEK_SET);        
-									read(fd, &buffer, SIZE_OF_BLOCK);              						
-								}
-							}
-							else if (i == EXT2_IND_BLOCK)                             /* single indirect block */
-									printf("Single   : %u\n", inode->i_block[i]);
-							else if (i == EXT2_DIND_BLOCK)                            /* double indirect block */
-									printf("Double   : %u\n", inode->i_block[i]);
-							else if (i == EXT2_TIND_BLOCK)                            /* triple indirect block */
-									printf("Triple   : %u\n", inode->i_block[i]);
-
-					}
-				}
-
+				
 					// this inode represents a regular file
 				
 				
@@ -195,6 +176,38 @@ int main(int argc, char **argv) {
 
 			}
 	}
+
+
+	//loop over again. traverse inside directory to recover the filename through inode-filename mapping
+	for (unsigned int j = 0; j < total_groups; j++) {
+		off_t start_inode_table = locate_inode_table(j, &group);
+		for (unsigned int i = 0; i < inodes_per_block; i++) {
+			printf("inode %u: \n", i);
+			struct ext2_inode *inode = malloc(sizeof(struct ext2_inode));
+			read_inode(fd, j, start_inode_table, i, inode); //read all the group, instead of just group 0	
+			unsigned int i_blocks = inode->i_blocks/(2<<super.s_log_block_size); // = maximum index of the i_block array+1
+			printf("number of blocks %u\n", i_blocks); 
+			if(S_ISDIR(inode->i_mode)){ //dir use only the first data block for this project
+				lseek(fd, BLOCK_OFFSET(inode->i_block[0]), SEEK_SET);        
+				char buffer[SIZE_OF_BLOCK];
+				read(fd, &buffer, SIZE_OF_BLOCK); //buffer copy the data(mappings) stored in the directory
+
+				/*TODO: 
+				* traverse inside mappings (recover deleted files)
+				* provided function?
+				* find the filename corresponding to the inode number of jpg file found in part1
+				* canvas hints
+				*/
+				printf("Block 0: %u\n", inode->i_block[0]);
+
+				
+			}
+			free(inode);
+		}
+	}
+				
+
+
 
 	
 	close(fd);
